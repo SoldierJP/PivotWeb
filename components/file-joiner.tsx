@@ -20,10 +20,12 @@ export function FileJoiner() {
   const [isJoining, setIsJoining] = useState(false)
   const { toast } = useToast()
 
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"
+
   const fetchDatabaseFiles = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch("http://localhost:8000/files")
+      const response = await fetch(`${BACKEND_URL}/files`)
       if (!response.ok) {
         throw new Error("Error al conectar con la base de datos")
       }
@@ -50,9 +52,7 @@ export function FileJoiner() {
   }, [])
 
   const toggleFileSelection = (fileId: number) => {
-    setSelectedFileIds((prev) =>
-      prev.includes(fileId) ? prev.filter((id) => id !== fileId) : [...prev, fileId]
-    )
+    setSelectedFileIds((prev) => (prev.includes(fileId) ? prev.filter((id) => id !== fileId) : [...prev, fileId]))
   }
 
   const unifyAndDownload = async () => {
@@ -68,7 +68,7 @@ export function FileJoiner() {
     setIsJoining(true)
     try {
       const ids = selectedFileIds.join(",")
-      const response = await fetch(`http://localhost:8000/files/unify?ids=${ids}`)
+      const response = await fetch(`${BACKEND_URL}/files/unify?ids=${ids}`)
       if (!response.ok) {
         throw new Error("Error unificando archivos")
       }

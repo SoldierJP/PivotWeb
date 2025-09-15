@@ -19,9 +19,9 @@ export class DatabaseConnection {
       database: process.env.PGDATABASE || "chip",
       user: process.env.PGUSER || "app",
       password: process.env.PGPASSWORD || "app",
-      connectionTimeoutMillis: 10000,
-      query_timeout: 5000,
-      ssl: false,
+      connectionTimeoutMillis: 30000, // Increased timeout for production
+      query_timeout: 10000, // Increased query timeout
+      ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
       keepAlive: true,
       keepAliveInitialDelayMillis: 10000,
     }
@@ -44,11 +44,14 @@ export class DatabaseConnection {
       if (error instanceof Error) {
         if (error.message.includes("ECONNREFUSED")) {
           throw new Error(
-            `No se puede conectar a la base de datos. Verifica que el contenedor Docker esté ejecutándose en ${process.env.PGHOST || "localhost"}:${process.env.PGPORT || "5433"}`,
+            `No se puede conectar a la base de datos. Verifica que el contenedor Docker esté ejecutándose en ${process.env.PGHOST || "localhost"}:${process.env.PGPORT || "5433"}. En producción, verifica las variables de entorno PGHOST y PGPORT.`,
           )
         }
         if (error.message.includes("ENOTFOUND")) {
           throw new Error(`Host de base de datos no encontrado: ${process.env.PGHOST || "localhost"}`)
+        }
+        if (error.message.includes("authentication failed")) {
+          throw new Error("Error de autenticación. Verifica PGUSER y PGPASSWORD.")
         }
       }
       throw error
