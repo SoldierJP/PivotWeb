@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { DatabaseConnection } from "@/lib/database"
 
 export async function GET() {
+  let db: DatabaseConnection | null = null
+
   try {
     console.log("[v0] Testing database connection...")
     console.log("[v0] Environment variables:", {
@@ -12,19 +14,20 @@ export async function GET() {
       PGPASSWORD: process.env.PGPASSWORD ? "***" : "undefined",
     })
 
-    const db = new DatabaseConnection()
+    if (!process.env.PGHOST && !process.env.PGPORT) {
+      console.log("[v0] No environment variables found, using defaults for Docker")
+    }
 
+    db = new DatabaseConnection()
     await db.connect()
     console.log("[v0] Database connected successfully")
 
     const isConnected = await db.testConnection()
 
     if (!isConnected) {
-      await db.disconnect()
       throw new Error("Test query failed")
     }
 
-    await db.disconnect()
     console.log("[v0] Database test completed successfully")
 
     return NextResponse.json({
@@ -34,6 +37,8 @@ export async function GET() {
         host: process.env.PGHOST || "localhost",
         port: process.env.PGPORT || "5433",
         database: process.env.PGDATABASE || "chip",
+        status: "connected",
+        timestamp: new Date().toISOString(),
       },
     })
   } catch (error) {
@@ -47,9 +52,22 @@ export async function GET() {
           host: process.env.PGHOST || "localhost",
           port: process.env.PGPORT || "5433",
           database: process.env.PGDATABASE || "chip",
+          suggestions: [
+            "Verifica que el contenedor Docker esté ejecutándose",
+            "Confirma que el puerto 5433 esté disponible",
+            "Revisa las variables de entorno PGHOST, PGPORT, etc.",
+          ],
         },
       },
       { status: 500 },
     )
+  } finally {
+    if (db) {
+      try {
+        await db.disconnect()
+      } catch (error) {
+        console.error("[v0] Error closing database connection:", error)
+      }
+    }
   }
 }

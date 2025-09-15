@@ -13,22 +13,25 @@ export class DatabaseConnection {
   private client: Client
 
   constructor() {
-    console.log("[v0] Creating database connection with config:", {
-      host: process.env.PGHOST || "localhost",
-      port: process.env.PGPORT || "5433",
-      database: process.env.PGDATABASE || "chip",
-      user: process.env.PGUSER || "app",
-    })
-
-    this.client = new Client({
+    const config = {
       host: process.env.PGHOST || "localhost",
       port: Number.parseInt(process.env.PGPORT || "5433"),
       database: process.env.PGDATABASE || "chip",
       user: process.env.PGUSER || "app",
       password: process.env.PGPASSWORD || "app",
-      connectionTimeoutMillis: 5000,
+      connectionTimeoutMillis: 10000,
+      query_timeout: 5000,
       ssl: false,
+      keepAlive: true,
+      keepAliveInitialDelayMillis: 10000,
+    }
+
+    console.log("[v0] Creating database connection with config:", {
+      ...config,
+      password: config.password ? "***" : "undefined",
     })
+
+    this.client = new Client(config)
   }
 
   async connect() {
@@ -38,6 +41,16 @@ export class DatabaseConnection {
       console.log("[v0] Database connection established")
     } catch (error) {
       console.error("[v0] Failed to connect to database:", error)
+      if (error instanceof Error) {
+        if (error.message.includes("ECONNREFUSED")) {
+          throw new Error(
+            `No se puede conectar a la base de datos. Verifica que el contenedor Docker esté ejecutándose en ${process.env.PGHOST || "localhost"}:${process.env.PGPORT || "5433"}`,
+          )
+        }
+        if (error.message.includes("ENOTFOUND")) {
+          throw new Error(`Host de base de datos no encontrado: ${process.env.PGHOST || "localhost"}`)
+        }
+      }
       throw error
     }
   }
