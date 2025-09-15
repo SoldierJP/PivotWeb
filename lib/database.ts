@@ -13,17 +13,33 @@ export class DatabaseConnection {
   private client: Client
 
   constructor() {
+    console.log("[v0] Creating database connection with config:", {
+      host: process.env.PGHOST || "localhost",
+      port: process.env.PGPORT || "5433",
+      database: process.env.PGDATABASE || "chip",
+      user: process.env.PGUSER || "app",
+    })
+
     this.client = new Client({
       host: process.env.PGHOST || "localhost",
       port: Number.parseInt(process.env.PGPORT || "5433"),
       database: process.env.PGDATABASE || "chip",
       user: process.env.PGUSER || "app",
       password: process.env.PGPASSWORD || "app",
+      connectionTimeoutMillis: 5000,
+      ssl: false,
     })
   }
 
   async connect() {
-    await this.client.connect()
+    try {
+      console.log("[v0] Attempting to connect to database...")
+      await this.client.connect()
+      console.log("[v0] Database connection established")
+    } catch (error) {
+      console.error("[v0] Failed to connect to database:", error)
+      throw error
+    }
   }
 
   async disconnect() {
