@@ -120,7 +120,7 @@ export function ExcelFilter() {
       {/* File Upload */}
       <div className="space-y-4">
         <div>
-          <Label htmlFor="excel-input">Subir Archivo Excel/CSV para Filtrar</Label>
+          <Label>Subir Archivo Excel/CSV para Filtrar</Label>
           <div className="mt-2">
             <Input
               id="excel-input"
@@ -133,7 +133,7 @@ export function ExcelFilter() {
             <Button
               onClick={() => fileInputRef.current?.click()}
               variant="outline"
-              className="w-full"
+              className="w-full hover:bg-accent cursor-pointer"
               disabled={isProcessing}
             >
               <Upload className="w-4 h-4 mr-2" />
