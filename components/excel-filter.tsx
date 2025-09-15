@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -106,8 +105,8 @@ export function ExcelFilter() {
     if (!filteredData) return
 
     const baseFileName = fileName.replace(/\.[^/.]+$/, "")
-
     const csvData = [filteredData.headers, ...filteredData.rows]
+
     downloadCSV(csvData, `filtrado_${baseFileName}.csv`)
 
     toast({
@@ -132,24 +131,21 @@ export function ExcelFilter() {
               accept=".csv,.xlsx,.xls"
               ref={fileInputRef}
               onChange={handleFileUpload}
-              className="sr-only"
+              className="hidden"
             />
-            <Button
-              onClick={() => {
-                console.log("[v0] Button clicked, triggering file input")
-                console.log("[v0] File input ref:", fileInputRef.current)
-                if (fileInputRef.current) {
-                  fileInputRef.current.click()
-                  console.log("[v0] File input clicked")
-                }
-              }}
-              variant="outline"
-              className="w-full hover:bg-accent cursor-pointer"
-              disabled={isProcessing}
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              {isProcessing ? "Procesando..." : "Elegir Archivo Excel/CSV"}
-            </Button>
+            <Label htmlFor="excel-input">
+              <Button
+                asChild
+                variant="outline"
+                className="w-full hover:bg-accent cursor-pointer"
+                disabled={isProcessing}
+              >
+                <span>
+                  <Upload className="w-4 h-4 mr-2" />
+                  {isProcessing ? "Procesando..." : "Elegir Archivo Excel/CSV"}
+                </span>
+              </Button>
+            </Label>
           </div>
           <p className="text-sm text-muted-foreground mt-2">
             El archivo se procesará localmente y no se guardará en la base de datos
