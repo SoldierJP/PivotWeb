@@ -5,24 +5,17 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Download, Database, FileText, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { downloadText, formatFileSize } from "@/lib/download-utils"
 
 interface DatabaseFile {
-  id: string
-  name: string
-  size: number
-  content: string
+  id: number
+  filename: string
 }
-
-type JoinMethod = "concatenate" | "merge-lines"
 
 export function FileJoiner() {
   const [availableFiles, setAvailableFiles] = useState<DatabaseFile[]>([])
-  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([])
-  const [joinMethod, setJoinMethod] = useState<JoinMethod>("concatenate")
+  const [selectedFileIds, setSelectedFileIds] = useState<number[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isJoining, setIsJoining] = useState(false)
   const { toast } = useToast()
@@ -30,7 +23,7 @@ export function FileJoiner() {
   const fetchDatabaseFiles = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch("/api/database-files")
+      const response = await fetch("http://localhost:8000/files")
       if (!response.ok) {
         throw new Error("Error al conectar con la base de datos")
       }
@@ -44,7 +37,7 @@ export function FileJoiner() {
     } catch (error) {
       toast({
         title: "Error de conexión",
-        description: "No se pudo conectar con la base de datos PostgreSQL. Verifica que esté ejecutándose.",
+        description: "No se pudo conectar con la base de datos PostgreSQL. Verifica que el backend esté ejecutándose.",
         variant: "destructive",
       })
     } finally {
@@ -56,11 +49,13 @@ export function FileJoiner() {
     fetchDatabaseFiles()
   }, [])
 
-  const toggleFileSelection = (fileId: string) => {
-    setSelectedFileIds((prev) => (prev.includes(fileId) ? prev.filter((id) => id !== fileId) : [...prev, fileId]))
+  const toggleFileSelection = (fileId: number) => {
+    setSelectedFileIds((prev) =>
+      prev.includes(fileId) ? prev.filter((id) => id !== fileId) : [...prev, fileId]
+    )
   }
 
-  const joinAndDownload = async () => {
+  const unifyAndDownload = async () => {
     if (selectedFileIds.length === 0) {
       toast({
         title: "Sin archivos seleccionados",
@@ -72,41 +67,32 @@ export function FileJoiner() {
 
     setIsJoining(true)
     try {
-      const selectedFiles = availableFiles.filter((file) => selectedFileIds.includes(file.id))
-      let joinedContent = ""
-
-      switch (joinMethod) {
-        case "concatenate":
-          joinedContent = selectedFiles.map((file) => `\n--- ${file.name} ---\n${file.content}\n`).join("")
-          break
-
-        case "merge-lines":
-          const allLines = selectedFiles.flatMap((file) => file.content.split("\n"))
-          joinedContent = allLines.join("\n")
-          break
+      const ids = selectedFileIds.join(",")
+      const response = await fetch(`http://localhost:8000/files/unify?ids=${ids}`)
+      if (!response.ok) {
+        throw new Error("Error unificando archivos")
       }
-
-      downloadText(joinedContent, {
-        filename: `archivos-unidos-${Date.now()}.txt`,
-        type: "text/plain",
-      })
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `archivos-unificados-${Date.now()}.xlsx`
+      a.click()
 
       toast({
         title: "Archivos unidos exitosamente",
-        description: `Se descargaron ${selectedFiles.length} archivos combinados usando el método ${joinMethod === "concatenate" ? "concatenar" : "unir líneas"}.`,
+        description: `Se descargó un archivo Excel unificado con ${selectedFileIds.length} archivos.`,
       })
     } catch (error) {
       toast({
         title: "Error al unir archivos",
-        description: "Hubo un error procesando los archivos.",
+        description: "Hubo un error procesando los archivos desde el backend.",
         variant: "destructive",
       })
     } finally {
       setIsJoining(false)
     }
   }
-
-  const selectedFiles = availableFiles.filter((file) => selectedFileIds.includes(file.id))
 
   return (
     <div className="space-y-6">
@@ -119,7 +105,6 @@ export function FileJoiner() {
           </Button>
         </div>
 
-        {/* Available Files Display */}
         {availableFiles.length > 0 && (
           <div className="space-y-2">
             <Label>Archivos Disponibles ({availableFiles.length})</Label>
@@ -135,10 +120,7 @@ export function FileJoiner() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <FileText className="w-4 h-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">{file.name}</p>
-                        <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
-                      </div>
+                      <p className="text-sm font-medium">{file.filename}</p>
                     </div>
                     {selectedFileIds.includes(file.id) && <Badge variant="default">Seleccionado</Badge>}
                   </div>
@@ -152,38 +134,20 @@ export function FileJoiner() {
           <div className="text-center py-8 text-muted-foreground">
             <Database className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>No se encontraron archivos en la base de datos</p>
-            <p className="text-sm">Verifica que la base de datos esté ejecutándose en el puerto 5433</p>
+            <p className="text-sm">Verifica que el backend FastAPI esté corriendo en el puerto 8000</p>
           </div>
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="join-method">Método de Unión</Label>
-        <Select value={joinMethod} onValueChange={(value: JoinMethod) => setJoinMethod(value)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="concatenate">Concatenar con separadores</SelectItem>
-            <SelectItem value="merge-lines">Unir todas las líneas</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Join and Download Button */}
-      <Button onClick={joinAndDownload} disabled={selectedFileIds.length === 0 || isJoining} className="w-full">
+      <Button onClick={unifyAndDownload} disabled={selectedFileIds.length === 0 || isJoining} className="w-full">
         <Download className="w-4 h-4 mr-2" />
         {isJoining ? "Uniendo Archivos..." : "Unir y Descargar"}
       </Button>
 
-      {selectedFiles.length > 0 && (
+      {selectedFileIds.length > 0 && (
         <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
           <Badge variant="secondary">
-            {selectedFiles.length} archivo{selectedFiles.length !== 1 ? "s" : ""} seleccionado
-            {selectedFiles.length !== 1 ? "s" : ""}
-          </Badge>
-          <Badge variant="secondary">
-            Tamaño total: {formatFileSize(selectedFiles.reduce((acc, f) => acc + f.size, 0))}
+            {selectedFileIds.length} archivo{selectedFileIds.length !== 1 ? "s" : ""} seleccionado
           </Badge>
         </div>
       )}
