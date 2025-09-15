@@ -49,9 +49,8 @@ export function ExcelFilter() {
 
     try {
       const text = await file.text()
-
-      // Simple CSV parsing (for demo purposes)
       const lines = text.split("\n").filter((line) => line.trim())
+
       if (lines.length === 0) {
         throw new Error("Archivo vacío")
       }
@@ -62,7 +61,6 @@ export function ExcelFilter() {
       const data: ExcelData = { headers, rows }
       setExcelData(data)
 
-      // Initialize all columns as selected
       const initialSelection: FilterState = {}
       headers.forEach((header) => {
         initialSelection[header] = true
@@ -71,13 +69,13 @@ export function ExcelFilter() {
       setFilteredData(data)
 
       toast({
-        title: "Archivo subido exitosamente",
+        title: "Archivo cargado exitosamente",
         description: `Se cargaron ${rows.length} filas con ${headers.length} columnas`,
       })
     } catch (error) {
       toast({
         title: "Error procesando archivo",
-        description: "Hubo un error leyendo tu archivo. Asegúrate de que sea un CSV o Excel válido.",
+        description: "Hubo un error procesando tu archivo. Verifica que sea un CSV válido.",
         variant: "destructive",
       })
     } finally {
@@ -122,7 +120,7 @@ export function ExcelFilter() {
       {/* File Upload */}
       <div className="space-y-4">
         <div>
-          <Label htmlFor="excel-input">Subir Archivo Excel/CSV</Label>
+          <Label htmlFor="excel-input">Subir Archivo Excel/CSV para Filtrar</Label>
           <div className="mt-2">
             <Input
               id="excel-input"
@@ -142,6 +140,9 @@ export function ExcelFilter() {
               {isProcessing ? "Procesando..." : "Elegir Archivo Excel/CSV"}
             </Button>
           </div>
+          <p className="text-sm text-muted-foreground mt-2">
+            El archivo se procesará localmente y no se guardará en la base de datos
+          </p>
         </div>
 
         {fileName && (

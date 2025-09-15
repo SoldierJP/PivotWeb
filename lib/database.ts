@@ -199,4 +199,15 @@ export class DatabaseConnection {
       updated_at: row.updated_at,
     }))
   }
+
+  async saveFile(name: string, content: string): Promise<string> {
+    const result = await this.client.query(
+      `INSERT INTO excel_files (name, content, created_at, updated_at) 
+       VALUES ($1, $2, NOW(), NOW()) 
+       RETURNING id`,
+      [name, content],
+    )
+
+    return result.rows[0].id.toString()
+  }
 }
