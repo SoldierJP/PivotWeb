@@ -35,6 +35,10 @@ export function ExcelFilter() {
     const file = event.target.files?.[0]
     if (!file) return
 
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+
     if (!file.name.endsWith(".csv") && !file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
       toast({
         title: "Tipo de archivo inválido",
@@ -131,7 +135,10 @@ export function ExcelFilter() {
               className="hidden"
             />
             <Button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => {
+                console.log("[v0] Button clicked, triggering file input")
+                fileInputRef.current?.click()
+              }}
               variant="outline"
               className="w-full hover:bg-accent cursor-pointer"
               disabled={isProcessing}
