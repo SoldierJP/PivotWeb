@@ -132,12 +132,16 @@ export function ExcelFilter() {
               accept=".csv,.xlsx,.xls"
               ref={fileInputRef}
               onChange={handleFileUpload}
-              className="hidden"
+              className="sr-only"
             />
             <Button
               onClick={() => {
                 console.log("[v0] Button clicked, triggering file input")
-                fileInputRef.current?.click()
+                console.log("[v0] File input ref:", fileInputRef.current)
+                if (fileInputRef.current) {
+                  fileInputRef.current.click()
+                  console.log("[v0] File input clicked")
+                }
               }}
               variant="outline"
               className="w-full hover:bg-accent cursor-pointer"
