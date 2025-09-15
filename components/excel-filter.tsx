@@ -174,7 +174,7 @@ export function ExcelFilter() {
                     checked={selectedColumns[header] || false}
                     onCheckedChange={(checked) => handleColumnToggle(header, checked as boolean)}
                   />
-                  <Label htmlFor={header} className="text-sm font-medium cursor-pointer truncate" title={header}>
+                  <Label className="text-sm font-medium truncate" title={header}>
                     {header}
                   </Label>
                 </div>
