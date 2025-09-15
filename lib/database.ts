@@ -1,0 +1,173 @@
+import { Client } from "pg"
+
+export interface DatabaseFile {
+  id: string
+  name: string
+  content: string
+  size: number
+  created_at: string
+  updated_at: string
+}
+
+export class DatabaseConnection {
+  private client: Client
+
+  constructor() {
+    this.client = new Client({
+      host: process.env.PGHOST || "localhost",
+      port: Number.parseInt(process.env.PGPORT || "5433"),
+      database: process.env.PGDATABASE || "chip",
+      user: process.env.PGUSER || "app",
+      password: process.env.PGPASSWORD || "app",
+    })
+  }
+
+  async connect() {
+    await this.client.connect()
+  }
+
+  async disconnect() {
+    await this.client.end()
+  }
+
+  async getAllFiles(): Promise<DatabaseFile[]> {
+    const result = await this.client.query(`
+      SELECT 
+        id, 
+        name, 
+        content,
+        CASE 
+          WHEN content IS NOT NULL THEN length(content) 
+          ELSE 0 
+        END as size,
+        created_at,
+        updated_at
+      FROM excel_files 
+      ORDER BY name
+    `)
+
+    return result.rows.map((row) => ({
+      id: row.id.toString(),
+      name: row.name,
+      content: row.content || "",
+      size: Number.parseInt(row.size) || 0,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    }))
+  }
+
+  async getFileById(id: string): Promise<DatabaseFile | null> {
+    const result = await this.client.query(
+      `SELECT 
+        id, 
+        name, 
+        content,
+        CASE 
+          WHEN content IS NOT NULL THEN length(content) 
+          ELSE 0 
+        END as size,
+        created_at,
+        updated_at
+      FROM excel_files 
+      WHERE id = $1`,
+      [id],
+    )
+
+    if (result.rows.length === 0) return null
+
+    const row = result.rows[0]
+    return {
+      id: row.id.toString(),
+      name: row.name,
+      content: row.content || "",
+      size: Number.parseInt(row.size) || 0,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    }
+  }
+
+  async getFilesByIds(ids: string[]): Promise<DatabaseFile[]> {
+    if (ids.length === 0) return []
+
+    const placeholders = ids.map((_, index) => `$${index + 1}`).join(",")
+    const result = await this.client.query(
+      `SELECT 
+        id, 
+        name, 
+        content,
+        CASE 
+          WHEN content IS NOT NULL THEN length(content) 
+          ELSE 0 
+        END as size,
+        created_at,
+        updated_at
+      FROM excel_files 
+      WHERE id IN (${placeholders})
+      ORDER BY name`,
+      ids,
+    )
+
+    return result.rows.map((row) => ({
+      id: row.id.toString(),
+      name: row.name,
+      content: row.content || "",
+      size: Number.parseInt(row.size) || 0,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    }))
+  }
+
+  async testConnection(): Promise<boolean> {
+    try {
+      await this.client.query("SELECT 1")
+      return true
+    } catch (error) {
+      console.error("[v0] Database connection test failed:", error)
+      return false
+    }
+  }
+
+  async getFileStats(): Promise<{ total: number; totalSize: number }> {
+    const result = await this.client.query(`
+      SELECT 
+        COUNT(*) as total,
+        COALESCE(SUM(CASE WHEN content IS NOT NULL THEN length(content) ELSE 0 END), 0) as total_size
+      FROM excel_files
+    `)
+
+    return {
+      total: Number.parseInt(result.rows[0].total) || 0,
+      totalSize: Number.parseInt(result.rows[0].total_size) || 0,
+    }
+  }
+
+  async searchFilesByName(searchTerm: string): Promise<DatabaseFile[]> {
+    const result = await this.client.query(
+      `
+      SELECT 
+        id, 
+        name, 
+        content,
+        CASE 
+          WHEN content IS NOT NULL THEN length(content) 
+          ELSE 0 
+        END as size,
+        created_at,
+        updated_at
+      FROM excel_files 
+      WHERE name ILIKE $1
+      ORDER BY name
+    `,
+      [`%${searchTerm}%`],
+    )
+
+    return result.rows.map((row) => ({
+      id: row.id.toString(),
+      name: row.name,
+      content: row.content || "",
+      size: Number.parseInt(row.size) || 0,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    }))
+  }
+}
