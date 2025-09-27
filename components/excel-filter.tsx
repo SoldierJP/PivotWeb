@@ -30,58 +30,6 @@ export function ExcelFilter() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
-  const detectEncoding = (buffer: ArrayBuffer): string => {
-    const uint8Array = new Uint8Array(buffer)
-
-    // Check for BOM markers
-    if (uint8Array.length >= 3 && uint8Array[0] === 0xef && uint8Array[1] === 0xbb && uint8Array[2] === 0xbf) {
-      return "utf-8"
-    }
-    if (uint8Array.length >= 2 && uint8Array[0] === 0xff && uint8Array[1] === 0xfe) {
-      return "utf-16le"
-    }
-    if (uint8Array.length >= 2 && uint8Array[0] === 0xfe && uint8Array[1] === 0xff) {
-      return "utf-16be"
-    }
-
-    // Default to UTF-8
-    return "utf-8"
-  }
-
-  const parseCSVLine = (line: string): string[] => {
-    const result: string[] = []
-    let current = ""
-    let inQuotes = false
-    let i = 0
-
-    while (i < line.length) {
-      const char = line[i]
-
-      if (char === '"') {
-        if (inQuotes && line[i + 1] === '"') {
-          // Escaped quote
-          current += '"'
-          i += 2
-        } else {
-          // Toggle quote state
-          inQuotes = !inQuotes
-          i++
-        }
-      } else if (char === "," && !inQuotes) {
-        // Field separator
-        result.push(current.trim())
-        current = ""
-        i++
-      } else {
-        current += char
-        i++
-      }
-    }
-
-    result.push(current.trim())
-    return result
-  }
-
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -90,14 +38,12 @@ export function ExcelFilter() {
       fileInputRef.current.value = ""
     }
 
-    if (!file.name.endsWith(".csv")) {
+    if (!file.name.endsWith(".csv") && !file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
       toast({
-        title: "Formato no soportado completamente",
-        description:
-          "Para archivos Excel (.xlsx, .xls), por favor conviértelos a CSV primero. Solo archivos CSV son completamente compatibles.",
+        title: "Tipo de archivo inválido",
+        description: "Por favor sube un archivo CSV o Excel (.csv, .xlsx, .xls)",
         variant: "destructive",
       })
-      setIsProcessing(false)
       return
     }
 
@@ -105,37 +51,17 @@ export function ExcelFilter() {
     setFileName(file.name)
 
     try {
-      let text: string
-
-      if (file.name.endsWith(".csv")) {
-        const buffer = await file.arrayBuffer()
-        const encoding = detectEncoding(buffer)
-        const decoder = new TextDecoder(encoding)
-        text = decoder.decode(buffer)
-      } else {
-        toast({
-          title: "Formato no soportado completamente",
-          description:
-            "Para archivos Excel (.xlsx, .xls), por favor conviértelos a CSV primero. Solo archivos CSV son completamente compatibles.",
-          variant: "destructive",
-        })
-        setIsProcessing(false)
-        return
-      }
-
-      const lines = text.split(/\r?\n/).filter((line) => line.trim())
+      const text = await file.text()
+      const lines = text.split("\n").filter((line) => line.trim())
 
       if (lines.length === 0) {
         throw new Error("Archivo vacío")
       }
 
-      const headers = parseCSVLine(lines[0])
-      const rows = lines.slice(1).map((line) => parseCSVLine(line))
+      const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""))
+      const rows = lines.slice(1).map((line) => line.split(",").map((cell) => cell.trim().replace(/"/g, "")))
 
-      // Filter out empty rows
-      const validRows = rows.filter((row) => row.some((cell) => cell.trim() !== ""))
-
-      const data: ExcelData = { headers, rows: validRows }
+      const data: ExcelData = { headers, rows }
       setExcelData(data)
 
       const initialSelection: FilterState = {}
@@ -147,13 +73,12 @@ export function ExcelFilter() {
 
       toast({
         title: "Archivo cargado exitosamente",
-        description: `Se cargaron ${validRows.length} filas con ${headers.length} columnas`,
+        description: `Se cargaron ${rows.length} filas con ${headers.length} columnas`,
       })
     } catch (error) {
-      console.error("Error processing file:", error)
       toast({
         title: "Error procesando archivo",
-        description: "Hubo un error procesando tu archivo. Verifica que sea un CSV válido con codificación UTF-8.",
+        description: "Hubo un error procesando tu archivo. Verifica que sea un CSV válido.",
         variant: "destructive",
       })
     } finally {
@@ -198,29 +123,32 @@ export function ExcelFilter() {
       {/* File Upload */}
       <div className="space-y-4">
         <div>
-          <Label>Subir Archivo CSV para Filtrar</Label>
+          <Label>Subir Archivo Excel/CSV para Filtrar</Label>
           <div className="mt-2">
             <Input
               id="excel-input"
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx,.xls"
               ref={fileInputRef}
               onChange={handleFileUpload}
-              className="sr-only"
+              className="hidden"
             />
-            <Button
-              onClick={() => fileInputRef.current?.click()}
-              variant="outline"
-              className="w-full hover:bg-accent cursor-pointer"
-              disabled={isProcessing}
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              {isProcessing ? "Procesando..." : "Elegir Archivo CSV"}
-            </Button>
+            <Label htmlFor="excel-input">
+              <Button
+                asChild
+                variant="outline"
+                className="w-full hover:bg-accent cursor-pointer"
+                disabled={isProcessing}
+              >
+                <span>
+                  <Upload className="w-4 h-4 mr-2" />
+                  {isProcessing ? "Procesando..." : "Elegir Archivo Excel/CSV"}
+                </span>
+              </Button>
+            </Label>
           </div>
           <p className="text-sm text-muted-foreground mt-2">
-            El archivo se procesará localmente y no se guardará en la base de datos. Para archivos Excel, conviértelos a
-            CSV primero.
+            El archivo se procesará localmente y no se guardará en la base de datos
           </p>
         </div>
 
